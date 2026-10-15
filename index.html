@@ -3,6 +3,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -175,6 +178,19 @@ td.code{font-family:var(--display);letter-spacing:.08em}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-weight:800;font-size:.85rem}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:2px solid var(--ink)}
 .empty{text-align:center;font-weight:800;padding:14px}
+.logo-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo-box{width:84px;height:84px;border:3px dashed var(--wood-dark);border-radius:16px;background:#fff;display:grid;place-items:center;overflow:hidden;flex:none;font-weight:800;font-size:.75rem;text-align:center;color:#8a6a48}
+.logo-box img{max-width:100%;max-height:100%}
+.drop{border:3px dashed var(--ink);border-radius:16px;background:#fff;padding:18px;text-align:center;font-weight:800;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center}
+.drop.over{background:#fff2b0}
+.drop small{font-weight:700;opacity:.75}
+.who img{width:34px;height:34px;object-fit:contain;border-radius:8px;background:#fff}
+.rec-logo{width:64px;height:64px;object-fit:contain;display:block;margin:0 auto}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{font-family:var(--display);font-size:1.05rem;color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:12px;padding:6px 16px;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+.tab.on{background:var(--yellow);transform:translateY(-2px)}
+.tab:focus-visible{outline:4px solid #fff;outline-offset:2px}
+code{font-weight:900;background:#f3e3c3;border-radius:6px;padding:1px 6px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -325,15 +341,32 @@ td.code{font-family:var(--display);letter-spacing:.08em}
             <label class="field" for="admNewSchool">Daftar sekolah baharu<input id="admNewSchool" placeholder="cth. SK Taman Melati"></label>
           </div>
           <div class="row" style="justify-content:flex-end"><button class="btn sm" id="admAddSchool">Tambah Sekolah</button></div>
+          <div class="logo-row">
+            <div class="logo-box" id="admLogoPrev">Tiada logo</div>
+            <label class="field" for="admLogoFile" style="flex:1">Logo sekolah aktif (PNG/JPG). Dipaparkan pada skrin murid dan semua PDF.<input id="admLogoFile" type="file" accept="image/*"></label>
+            <button class="btn sm" id="admLogoSave">Simpan Logo</button>
+          </div>
+          <p class="msg" id="admLogoMsg"></p>
         </div>
-        <div class="inner" style="display:flex;flex-direction:column;gap:10px">
-          <h3>2. Daftar murid &amp; jana kod</h3>
+        <div class="inner" style="display:flex;flex-direction:column;gap:12px">
+          <h3 id="admRegTitle">2. Daftar murid &amp; jana kod</h3>
+          <div class="tabs" role="tablist">
+            <button class="tab on" role="tab" aria-selected="true" data-tab="manual" id="tabManual">Daftar Manual</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="upload" id="tabUpload">Muat Naik Dokumen</button>
+          </div>
+          <div id="paneUpload" hidden style="display:flex;flex-direction:column;gap:10px">
+            <p style="font-weight:700">Muat naik senarai murid dalam bentuk <b>CSV, Excel (.xlsx/.xls), Word (.docx), PDF</b> atau <b>TXT</b>. Sistem akan mencari lajur "Nama" dan "Kelas" secara automatik dan menyenaraikan nama di bawah untuk disemak.</p>
+            <label class="drop" id="upDrop" for="upFile"><span>Seret fail ke sini atau klik untuk pilih</span><small id="upFileName">.csv · .xlsx · .xls · .docx · .pdf · .txt</small>
+              <input id="upFile" type="file" accept=".csv,.txt,.xlsx,.xls,.ods,.pdf,.docx" hidden></label>
+            <p class="msg" id="upMsg"></p>
+          </div>
+          <p id="manualHint" style="font-weight:700">Taip atau tampal nama murid, satu nama setiap baris. Untuk kelas berbeza dalam satu senarai, tulis <code>Nama ; Kelas</code>.</p>
           <div class="grid2">
             <label class="field" for="admClass">Kelas<input id="admClass" placeholder="cth. 4 Dinamik"></label>
-            <label class="field" for="admNames">Nama murid (satu nama setiap baris)<textarea id="admNames" rows="5" placeholder="Ahmad Danial bin Rosli&#10;Nur Aisyah binti Hamzah"></textarea></label>
+            <label class="field" for="admNames"><span>Nama murid (satu nama setiap baris) · <span id="nameCount">0 nama</span></span><textarea id="admNames" rows="7" placeholder="Ahmad Danial bin Rosli&#10;Nur Aisyah binti Hamzah&#10;Kumar a/l Muthu ; 4 Bestari"></textarea></label>
           </div>
           <p class="msg" id="admAddMsg"></p>
-          <div class="row" style="justify-content:flex-end"><button class="btn sm" id="admAddStudents">Jana Kod &amp; Simpan</button></div>
+          <div class="row" style="justify-content:flex-end"><button class="btn wood sm" id="admClearNames">Kosongkan</button><button class="btn sm" id="admAddStudents">Jana Kod &amp; Simpan</button></div>
         </div>
         <div class="inner" style="display:flex;flex-direction:column;gap:10px">
           <h3>3. Senarai murid</h3>
@@ -1015,10 +1048,18 @@ async function ensureAuth(){ let u=auth.currentUser||await firstAuth(); if(!u){ 
 
 /* ---------- student identity ---------- */
 let student=load('student',null), guest=false;
+async function fetchLogo(sid){ if(!sid||!ready()) return ''; try{ const s=await db.collection('schools').doc(sid).get(); return (s.exists&&s.data().logo)||''; }catch(e){ return ''; } }
+async function refreshStudent(){
+  if(!student||!ready()) return;
+  try{ await ensureAuth(); const snap=await db.collection('students').doc(student.code).get();
+    if(!snap.exists) return; const d=snap.data();
+    Object.assign(student,{name:d.name,className:d.className||'',schoolName:d.schoolName||'',schoolId:d.schoolId||''});
+    student.logo=await fetchLogo(student.schoolId); save('student',student); renderWho();
+  }catch(e){} }
 function renderWho(){
   const w=$('#who');
   if(student){
-    w.innerHTML=`<span>Murid: ${esc(student.name)}${student.className?' · '+esc(student.className):''}</span><button class="btn blue sm" id="whoRec">Rekod Saya</button><button class="btn red sm" id="whoOut">Tukar Murid</button>`;
+    w.innerHTML=`${student.logo?`<img src="${student.logo}" alt="">`:''}<span>Murid: ${esc(student.name)}${student.className?' · '+esc(student.className):''}</span><button class="btn blue sm" id="whoRec">Rekod Saya</button><button class="btn red sm" id="whoOut">Tukar Murid</button>`;
     $('#whoRec').onclick=openMyRecords;
     $('#whoOut').onclick=()=>{ student=null; save('student',null); guest=false; renderWho(); };
   } else {
@@ -1044,7 +1085,7 @@ $('#loginGo').onclick=async()=>{
     await ensureAuth();
     const snap=await db.collection('students').doc(code).get();
     if(!snap.exists){ m.className='msg err'; m.textContent='Kod tidak dijumpai. Semak semula dengan guru anda.'; return; }
-    const d=snap.data(); student={code,name:d.name,className:d.className||'',schoolName:d.schoolName||''}; save('student',student); guest=false;
+    const d=snap.data(); student={code,name:d.name,className:d.className||'',schoolName:d.schoolName||'',schoolId:d.schoolId||'',logo:await fetchLogo(d.schoolId)}; save('student',student); guest=false;
     renderWho(); m.className='msg okm'; m.textContent='Selamat datang, '+d.name+'!';
     setTimeout(()=>{ if(afterLogin){const f=afterLogin;afterLogin=null;f();} else G.show('#scrMenu'); },700);
   }catch(e){ m.className='msg err'; m.textContent='Gagal menyemak kod: '+e.message; }
@@ -1085,6 +1126,7 @@ function recordsHTML(info,sessions){
   const tiles=['skel','kord','jeda'].map(m=>`<div class="tile"><span class="k" style="color:${MODE_COLOR[m]}">${G.MODE_NAME[m]}</span><b>${sm[m].avg==null?'–':sm[m].avg+'%'}</b><span>purata · ${sm[m].n} sesi · terbaik ${sm[m].best==null?'–':sm[m].best+'%'}</span></div>`).join('');
   const rows=sessions.slice().reverse().map((s,i)=>`<tr><td>${sessions.length-i}</td><td>${esc(fmtDate(s.playedAt))}</td><td>${esc(MODE_SHORT[s.mode]||s.mode)}</td><td>${s.correct}/${s.total}</td><td>${Math.round(100*s.correct/s.total)}%</td><td>${(s.score||0).toLocaleString('ms-MY')}</td><td>${'★'.repeat(s.stars||0)}${'☆'.repeat(3-(s.stars||0))}</td></tr>`).join('');
   return `<div style="display:flex;flex-direction:column;gap:12px">
+    ${info.logo?`<img class="rec-logo" src="${info.logo}" alt="Logo sekolah">`:''}
     <h2>${esc(info.name)}</h2>
     <p class="tag">${esc(info.className||'')}${info.schoolName?' · '+esc(info.schoolName):''} · Kod ${esc(fmtCode(info.code))}</p>
     <div class="tiles">${tiles}</div>
@@ -1126,8 +1168,12 @@ $('#recPdf').onclick=()=>{ if(recCtx) progressPdf(recCtx.info,recCtx.sessions); 
 /* ---------- PDF ---------- */
 const pdfTxt=s=>String(s==null?'':s).replace(/♭/g,'b').replace(/♯/g,'#').replace(/–/g,'-').replace(/·/g,'-');
 function newPdf(){ if(!window.jspdf){ alert('Pustaka PDF tidak dapat dimuatkan.'); return null; } return new window.jspdf.jsPDF({unit:'mm',format:'a4'}); }
-function pdfHeader(doc,title,sub){
+function pdfLogo(doc,logo,x,y,maxW,maxH){
+  if(!logo) return; try{ const pr=doc.getImageProperties(logo); const k=Math.min(maxW/pr.width,maxH/pr.height); doc.addImage(logo,'PNG',x+(maxW-pr.width*k)/2,y+(maxH-pr.height*k)/2,pr.width*k,pr.height*k); }catch(e){}
+}
+function pdfHeader(doc,title,sub,logo){
   doc.setFillColor(63,169,236); doc.rect(0,0,210,26,'F');
+  if(logo){ doc.setFillColor(255,255,255); doc.roundedRect(180,2,22,22,3,3,'F'); pdfLogo(doc,logo,181,3,20,20); }
   doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.text(pdfTxt(title),14,12);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.text(pdfTxt(sub),14,19);
   doc.setTextColor(43,26,16);
@@ -1147,7 +1193,7 @@ function pdfTable(doc,y,cols,rows,opts){
 }
 function progressPdf(info,sessions){
   const doc=newPdf(); if(!doc) return;
-  pdfHeader(doc,'Laporan Progress Aural Muzik','Burung Aural - dijana '+fmtDate(Date.now()));
+  pdfHeader(doc,'Laporan Progress Aural Muzik','Burung Aural - dijana '+fmtDate(Date.now()),info.logo);
   doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.text(pdfTxt(info.name),14,36);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
   doc.text(pdfTxt(`Kelas: ${info.className||'-'}    Sekolah: ${info.schoolName||'-'}    Kod: ${fmtCode(info.code)}`),14,42);
@@ -1247,8 +1293,9 @@ async function loadSchools(){
   const sel=$('#admSchool'), keep=load('admSchool','');
   sel.innerHTML=schools.length?schools.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join(''):'<option value="">(Daftar sekolah dahulu)</option>';
   if(schools.some(s=>s.id===keep)) sel.value=keep;
+  showLogo();
 }
-$('#admSchool').onchange=()=>{ save('admSchool',$('#admSchool').value); renderStudents(); };
+$('#admSchool').onchange=()=>{ save('admSchool',$('#admSchool').value); renderStudents(); showLogo(); };
 $('#admAddSchool').onclick=async()=>{
   const name=$('#admNewSchool').value.trim(); if(!name) return;
   const ref=await db.collection('schools').add({name,ownerUid:teacher.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
@@ -1262,15 +1309,16 @@ $('#admAddStudents').onclick=async()=>{
   const sid=$('#admSchool').value, school=schools.find(s=>s.id===sid);
   if(!school) return admMsg('#admAddMsg','Daftar dan pilih sekolah dahulu.','err');
   const cls=$('#admClass').value.trim();
-  const names=$('#admNames').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  if(!names.length) return admMsg('#admAddMsg','Masukkan sekurang-kurangnya satu nama.','err');
-  admMsg('#admAddMsg','Menjana kod untuk '+names.length+' murid...');
+  const rows=parseNameLines($('#admNames').value,cls);
+  if(!rows.length) return admMsg('#admAddMsg','Masukkan sekurang-kurangnya satu nama.','err');
+  const names=rows;
+  admMsg('#admAddMsg','Menjana kod untuk '+rows.length+' murid...');
   try{
-    for(const name of names){
+    for(const r of rows){
       const code=await uniqueCode();
-      await db.collection('students').doc(code).set({name,className:cls,schoolId:school.id,schoolName:school.name,ownerUid:teacher.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection('students').doc(code).set({name:r.name,className:r.kelas,schoolId:school.id,schoolName:school.name,ownerUid:teacher.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     }
-    $('#admNames').value=''; admMsg('#admAddMsg',names.length+' murid didaftarkan. Kod dipaparkan dalam senarai di bawah.','okm');
+    $('#admNames').value=''; updateCount(); admMsg('#admAddMsg',names.length+' murid didaftarkan. Kod dipaparkan dalam senarai di bawah.','okm');
     await loadStudents();
   }catch(e){ admMsg('#admAddMsg','Gagal menyimpan: '+e.message,'err'); }
 };
@@ -1301,9 +1349,9 @@ $('#admFilter').onchange=renderStudents;
 $('#admRows').addEventListener('click',async e=>{
   const p=e.target.closest('[data-prog]'), d=e.target.closest('[data-del]');
   if(p){ const s=studentsList.find(x=>x.code===p.dataset.prog), ss=sessCache[s.code]||[]; const box=$('#admDetail');
-    box.hidden=false; box.innerHTML=recordsHTML(s,ss)+'<div class="row"><button class="btn blue sm" id="admDetPdf">Muat Turun PDF Progress</button><button class="btn wood sm" id="admDetClose">Tutup Butiran</button></div>';
+    box.hidden=false; box.innerHTML=recordsHTML(Object.assign({},s,{logo:(schools.find(x=>x.id===s.schoolId)||{}).logo||''}),ss)+'<div class="row"><button class="btn blue sm" id="admDetPdf">Muat Turun PDF Progress</button><button class="btn wood sm" id="admDetClose">Tutup Butiran</button></div>';
     drawChart(box.querySelector('canvas'),ss);
-    $('#admDetPdf').onclick=()=>progressPdf(s,ss); $('#admDetClose').onclick=()=>{box.hidden=true;};
+    $('#admDetPdf').onclick=()=>progressPdf(Object.assign({},s,{logo:(schools.find(x=>x.id===s.schoolId)||{}).logo||''}),ss); $('#admDetClose').onclick=()=>{box.hidden=true;};
     box.scrollIntoView({behavior:'smooth',block:'start'}); }
   if(d){
     if(d.dataset.armed!=='1'){ d.dataset.armed='1'; d.textContent='Sahkan padam?'; setTimeout(()=>{ if(d.isConnected){d.dataset.armed='';d.textContent='Padam';} },3500); return; }
@@ -1316,14 +1364,15 @@ $('#admRows').addEventListener('click',async e=>{
 });
 $('#admPdfCodes').onclick=()=>{
   const list=visibleStudents(); if(!list.length) return; const doc=newPdf(); if(!doc) return;
-  const school=(schools.find(s=>s.id===$('#admSchool').value)||{}).name||'';
+  const schoolObj=schools.find(s=>s.id===$('#admSchool').value)||{}, school=schoolObj.name||'', slogo=schoolObj.logo||'';
   const perPage=10, cw=91, chh=50;
   list.forEach((s,i)=>{
     const k=i%perPage; if(i&&k===0) doc.addPage();
     if(k===0){ doc.setFontSize(9); doc.setTextColor(120,100,80); doc.text(pdfTxt('Slip kod murid - '+school+' - gunting di garisan putus-putus'),14,9); }
     const x=14+(k%2)*cw, y=13+Math.floor(k/2)*(chh+4);
     doc.setDrawColor(150,120,90); doc.setLineDashPattern([1.5,1.5],0); doc.rect(x,y,cw-4,chh); doc.setLineDashPattern([],0);
-    doc.setTextColor(43,26,16); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text(doc.splitTextToSize(pdfTxt(s.name),cw-12)[0],x+4,y+9);
+    if(slogo) pdfLogo(doc,slogo,x+cw-17,y+2,11,11);
+    doc.setTextColor(43,26,16); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text(doc.splitTextToSize(pdfTxt(s.name),cw-(slogo?24:12))[0],x+4,y+9);
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text(pdfTxt((s.className||'')+(school?' - '+school:'')),x+4,y+15);
     doc.setFillColor(255,246,224); doc.rect(x+4,y+19,cw-12,15,'F');
     doc.setFont('courier','bold'); doc.setFontSize(22); doc.text(fmtCode(s.code),x+(cw-4)/2,y+29.5,{align:'center'});
@@ -1335,14 +1384,150 @@ $('#admPdfCodes').onclick=()=>{
 $('#admPdfClass').onclick=()=>{
   const list=visibleStudents(); if(!list.length) return; const doc=newPdf(); if(!doc) return;
   const school=(schools.find(s=>s.id===$('#admSchool').value)||{}).name||'';
-  pdfHeader(doc,'Laporan Kelas - Ujian Aural','Sekolah: '+school+'   Kelas: '+($('#admFilter').value||'Semua')+'   Dijana: '+fmtDate(Date.now()));
+  pdfHeader(doc,'Laporan Kelas - Ujian Aural','Sekolah: '+school+'   Kelas: '+($('#admFilter').value||'Semua')+'   Dijana: '+fmtDate(Date.now()),(schools.find(s=>s.id===$('#admSchool').value)||{}).logo);
   pdfTable(doc,36,[{t:'Nama',w:56},{t:'Kelas',w:22},{t:'Sesi',w:13},{t:'Skel',w:17},{t:'Kord',w:17},{t:'Jeda',w:17},{t:'Purata',w:17},{t:'Terakhir',w:23}],
     list.map(s=>{const sm=summarize(sessCache[s.code]||[]);const f=v=>v==null?'-':v+'%';
       return [s.name,s.className||'',sm.all.n,f(sm.skel.avg),f(sm.kord.avg),f(sm.jeda.avg),f(sm.all.avg),sm.all.lastAt?new Date(sm.all.lastAt).toLocaleDateString('ms-MY'):'-'];}));
   doc.save(pdfTxt('Laporan_Kelas_'+($('#admFilter').value||'Semua')+'.pdf'));
 };
 
+/* ---------- logo sekolah ---------- */
+function showLogo(){
+  const s=schools.find(x=>x.id===$('#admSchool').value), b=$('#admLogoPrev');
+  b.innerHTML=s&&s.logo?`<img src="${s.logo}" alt="Logo ${esc(s.name)}">`:'Tiada logo';
+}
+async function resizeLogo(file,max){
+  const url=URL.createObjectURL(file);
+  try{ const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Gambar tidak dapat dibaca.'));i.src=url;});
+    const k=Math.min(1,max/Math.max(img.width,img.height)), c=document.createElement('canvas');
+    c.width=Math.max(1,Math.round(img.width*k)); c.height=Math.max(1,Math.round(img.height*k));
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height); return c.toDataURL('image/png');
+  } finally { URL.revokeObjectURL(url); }
+}
+$('#admLogoSave').onclick=async()=>{
+  const sid=$('#admSchool').value, f=$('#admLogoFile').files[0];
+  if(!sid) return admMsg('#admLogoMsg','Daftar dan pilih sekolah dahulu.','err');
+  if(!f) return admMsg('#admLogoMsg','Pilih fail gambar logo dahulu.','err');
+  try{ admMsg('#admLogoMsg','Memproses logo...');
+    let data=await resizeLogo(f,240); if(data.length>350000) data=await resizeLogo(f,160);
+    await db.collection('schools').doc(sid).update({logo:data});
+    const s=schools.find(x=>x.id===sid); if(s) s.logo=data; showLogo(); $('#admLogoFile').value='';
+    admMsg('#admLogoMsg','Logo disimpan.','okm');
+  }catch(e){ admMsg('#admLogoMsg','Gagal menyimpan logo: '+e.message,'err'); }
+};
+
+/* ---------- daftar manual / muat naik dokumen (tanpa AI) ---------- */
+function setTab(t){
+  document.querySelectorAll('.tab').forEach(b=>{const on=b.dataset.tab===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on);});
+  $('#paneUpload').hidden=t!=='upload'; $('#manualHint').hidden=t!=='manual';
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+function parseNameLines(text,defCls){
+  const seen=new Set(), out=[];
+  for(const line of String(text).split(/\r?\n/)){
+    const [n,k]=line.split(';'); const name=niceName(n); if(!name) continue;
+    const key=name.toLowerCase(); if(seen.has(key)) continue; seen.add(key);
+    out.push({name,kelas:(k||'').trim()||defCls||''});
+  }
+  return out;
+}
+function updateCount(){ $('#nameCount').textContent=parseNameLines($('#admNames').value,'').length+' nama'; }
+$('#admNames').addEventListener('input',updateCount);
+$('#admClearNames').onclick=()=>{ $('#admNames').value=''; updateCount(); admMsg('#admAddMsg',''); };
+
+const SMALL=['bin','binti','bt','bte','b.','a/l','a/p','anak','ak','van','de'];
+function niceName(n){
+  n=String(n||'').replace(/^\s*\d+\s*[\.\)\-:]?\s+/,'').replace(/\s+/g,' ').trim(); if(!n) return '';
+  if(n===n.toUpperCase()||n===n.toLowerCase()) n=n.toLowerCase().split(' ').map(w=>SMALL.includes(w)?w:w.replace(/(^|[-'@(])([a-z])/g,(m,a,c)=>a+c.toUpperCase())).join(' ');
+  return n;
+}
+const NAME_RE=/^[A-Za-z@'’.\/\-() ]+$/;
+const HEAD_NAME=/^(nama|name|nama murid|nama pelajar|nama penuh|student|student name)$/i;
+const HEAD_CLASS=/^(kelas|class|tingkatan|darjah)$/i;
+const NOT_NAME=/^(bil|no|nama|name|kelas|class|jantina|lelaki|perempuan|senarai|jumlah|guru|catatan|sekolah|tahun|tingkatan|l|p)\b/i;
+const looksName=c=>NAME_RE.test(c)&&c.trim().split(/\s+/).length>=2&&!NOT_NAME.test(c.trim());
+// rows: array of cell arrays
+function namesFromRows(rows){
+  rows=rows.map(r=>r.map(c=>String(c==null?'':c).replace(/\s+/g,' ').trim())).filter(r=>r.some(Boolean));
+  let hi=-1,ni=-1,ki=-1;
+  for(let i=0;i<Math.min(rows.length,15)&&ni<0;i++){ const r=rows[i]; const n=r.findIndex(c=>HEAD_NAME.test(c)); if(n>=0){hi=i;ni=n;ki=r.findIndex(c=>HEAD_CLASS.test(c));} }
+  const out=[];
+  if(ni>=0){
+    for(const r of rows.slice(hi+1)){ const n=r[ni]; if(n&&looksName(n)) out.push({name:n,kelas:ki>=0?(r[ki]||''):''}); }
+  } else {
+    for(const r of rows){ const c=r.filter(looksName).sort((a,b)=>b.length-a.length)[0]; if(c) out.push({name:c,kelas:''}); }
+  }
+  return out;
+}
+const splitLine=l=>l.includes('\t')?l.split('\t'):l.includes(';')?l.split(';'):l.split(',');
+function csvRows(text){ // CSV with quotes
+  const rows=[]; let row=[],cell='',q=false; const d=text.includes('\t')&&!text.includes(',')?'\t':(text.split(';').length>text.split(',').length?';':',');
+  for(let i=0;i<text.length;i++){ const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=ch; }
+    else if(ch==='"') q=true; else if(ch===d){row.push(cell);cell='';} else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&text[i+1]==='\n')i++; row.push(cell);rows.push(row);row=[];cell=''; } else cell+=ch; }
+  if(cell||row.length){row.push(cell);rows.push(row);} return rows;
+}
+async function pdfRows(buf){
+  if(!window.pdfjsLib) throw new Error('Pembaca PDF tidak dapat dimuatkan.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise, rows=[];
+  for(let pg=1;pg<=pdf.numPages;pg++){
+    const tc=await (await pdf.getPage(pg)).getTextContent(), lines=new Map();
+    for(const it of tc.items){ if(!it.str.trim()) continue; const y=Math.round(it.transform[5]/3)*3; if(!lines.has(y)) lines.set(y,[]); lines.get(y).push({x:it.transform[4],w:it.width,s:it.str}); }
+    [...lines.keys()].sort((a,b)=>b-a).forEach(y=>{ const items=lines.get(y).sort((a,b)=>a.x-b.x); const cells=[]; let last=null;
+      for(const it of items){ if(last&&it.x-(last.x+last.w)<6) cells[cells.length-1]+=(it.x-(last.x+last.w)>1?' ':'')+it.s; else cells.push(it.s); last=it; }
+      rows.push(cells); });
+  }
+  if(!rows.length) throw new Error('PDF ini tiada teks (mungkin imbasan/gambar). Guna CSV, Excel atau Word, atau taip secara manual.');
+  return rows;
+}
+async function docxRows(buf){
+  if(!window.mammoth) throw new Error('Pembaca Word tidak dapat dimuatkan.');
+  const {value}=await mammoth.convertToHtml({arrayBuffer:buf});
+  const dom=new DOMParser().parseFromString(value,'text/html'), rows=[];
+  dom.querySelectorAll('tr').forEach(tr=>rows.push([...tr.children].map(td=>td.textContent)));
+  dom.querySelectorAll('table').forEach(t=>t.remove());
+  dom.body.querySelectorAll('p,li,h1,h2,h3,h4').forEach(p=>rows.push([p.textContent]));
+  return rows;
+}
+async function readNameFile(f){
+  const ext=(f.name.split('.').pop()||'').toLowerCase();
+  if(ext==='doc') throw new Error('Format .doc lama tidak disokong. Simpan semula sebagai .docx, PDF atau CSV.');
+  if(['png','jpg','jpeg','heic','webp'].includes(ext)) throw new Error('Gambar tidak boleh dibaca tanpa AI. Guna CSV, Excel, Word atau PDF berteks.');
+  let rows;
+  if(ext==='pdf') rows=await pdfRows(await f.arrayBuffer());
+  else if(ext==='docx') rows=await docxRows(await f.arrayBuffer());
+  else if(['xlsx','xls','ods'].includes(ext)){ if(!window.XLSX) throw new Error('Pembaca Excel tidak dapat dimuatkan.'); const wb=XLSX.read(await f.arrayBuffer()); rows=[]; wb.SheetNames.forEach(n=>rows.push(...XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,defval:''}))); }
+  else { const t=await f.text(); rows=ext==='csv'||/[,;\t]/.test(t)?csvRows(t):t.split(/\r?\n/).map(l=>[l]); }
+  return namesFromRows(rows);
+}
+async function handleUpload(f){
+  $('#upFileName').textContent=f.name+' ('+Math.ceil(f.size/1024)+' KB)';
+  if(f.size>15*1024*1024) return admMsg('#upMsg','Fail terlalu besar (had 15 MB).','err');
+  admMsg('#upMsg','Membaca fail...');
+  try{
+    const found=await readNameFile(f);
+    if(!found.length) return admMsg('#upMsg','Tiada nama murid dijumpai. Pastikan ada lajur bertajuk "Nama", atau taip secara manual.','err');
+    const kelasSet=[...new Set(found.map(r=>r.kelas.trim()).filter(Boolean))];
+    const clsField=$('#admClass');
+    if(kelasSet.length===1&&!clsField.value.trim()) clsField.value=kelasSet[0];
+    const multi=kelasSet.length>1;
+    const lines=parseNameLines(found.map(r=>niceName(r.name)+(multi&&r.kelas?' ; '+r.kelas:'')).join('\n'),'');
+    $('#admNames').value=lines.map(r=>r.name+(multi&&r.kelas?' ; '+r.kelas:'')).join('\n'); updateCount();
+    admMsg('#upMsg',lines.length+' nama dijumpai'+(multi?' dalam '+kelasSet.length+' kelas':'')+'. Semak senarai di bawah, kemudian tekan "Jana Kod & Simpan".','okm');
+    $('#admNames').focus({preventScroll:true});
+  }catch(e){ admMsg('#upMsg',e.message||String(e),'err'); }
+  $('#upFile').value='';
+}
+const upDrop=$('#upDrop');
+['dragenter','dragover'].forEach(ev=>upDrop.addEventListener(ev,e=>{e.preventDefault();upDrop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>upDrop.addEventListener(ev,e=>{e.preventDefault();upDrop.classList.remove('over');}));
+upDrop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) handleUpload(f); });
+$('#upFile').onchange=e=>{ if(e.target.files[0]) handleUpload(e.target.files[0]); };
+
 window.BAData={saveSession};
 renderWho();
+refreshStudent();
 })();
 </script>
+

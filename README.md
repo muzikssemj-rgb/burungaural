@@ -73,9 +73,15 @@ Pautan: `https://PROJECT_ID.web.app`. Domain ini sudah dibenarkan secara automat
 ### Guru (wajib dibuat sekali selepas online)
 1. Buka pautan permainan, tekan **Panel Guru** dan masukkan kata laluan anda.
    Kali pertama, akaun guru dicipta secara automatik dalam Firebase.
-2. **Daftar sekolah**, kemudian isi **kelas** dan tampal **nama murid** (satu nama setiap baris). Tekan **Jana Kod & Simpan**.
-3. Tekan **PDF Slip Kod**, cetak, gunting dan edarkan kepada murid.
-4. **Progress** memaparkan graf dan semua sesi setiap murid dan boleh dimuat turun sebagai PDF. **PDF Laporan Kelas** memberi ringkasan seluruh kelas.
+2. **Daftar sekolah**, kemudian pilih fail logo dan tekan **Simpan Logo**. Logo muncul pada skrin murid, rekod dan semua PDF.
+3. **Daftar murid** (bahagian 2). Pilih salah satu cara:
+   - **Daftar Manual:** isi kelas dan taip atau tampal nama murid, satu nama setiap baris. Untuk kelas berbeza dalam satu senarai, tulis `Nama ; Kelas`.
+   - **Muat Naik Dokumen:** seret fail **CSV, Excel (.xlsx/.xls), Word (.docx), PDF berteks** atau **TXT**. Sistem mencari lajur **Nama** dan **Kelas** secara automatik dan menyenaraikan nama dengan kemas (cth. "AHMAD BIN ALI" menjadi "Ahmad bin Ali"). Semuanya diproses dalam pelayar, tanpa AI.
+
+   Semak senarai, kemudian tekan **Jana Kod & Simpan**.
+   > Tip: pastikan fail ada baris tajuk "Nama" (dan "Kelas" jika perlu). PDF imbasan/gambar tidak dapat dibaca; eksport semula sebagai Excel atau CSV.
+4. Tekan **PDF Slip Kod**, cetak, gunting dan edarkan kepada murid.
+5. **Progress** memaparkan graf dan semua sesi setiap murid dan boleh dimuat turun sebagai PDF. **PDF Laporan Kelas** memberi ringkasan seluruh kelas.
 
 ### Murid
 1. Buka pautan dan tekan **MAIN**.
@@ -93,6 +99,7 @@ Pautan: `https://PROJECT_ID.web.app`. Domain ini sudah dibenarkan secara automat
 | Log masuk gagal: *unauthorized-domain* | Tambah domain di Authorized domains (Langkah 2, poin 5) |
 | "Missing or insufficient permissions" | Rules belum di-Publish (Langkah 1.2, poin 4) |
 | Murid: "Kod tidak dijumpai" | Semak kod dalam Panel Guru. Huruf O/I/L dan nombor 0/1 tidak digunakan |
+| "Tiada nama murid dijumpai" | Tambah baris tajuk **Nama** pada fail, atau guna Daftar Manual |
 | Tiada bunyi | Tekan butang dalam permainan dahulu (pelayar menyekat bunyi automatik) dan naikkan volum |
 
 ### Tukar kata laluan Panel Guru
@@ -100,7 +107,7 @@ Firebase console → **Authentication → Users** → pengguna `panelguru@burung
 
 ## Struktur data Firestore
 ```
-schools/{id}                     name, ownerUid, createdAt
+schools/{id}                     name, logo (PNG kecil), ownerUid, createdAt
 students/{KOD}                   name, className, schoolId, schoolName, ownerUid, createdAt
 students/{KOD}/sessions/{id}     mode, correct, total, score, stars, answers[], settings, playedAt
 ```
