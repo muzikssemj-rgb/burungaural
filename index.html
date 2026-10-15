@@ -1005,7 +1005,8 @@ const fmtDate=ms=>new Date(ms).toLocaleString('ms-MY',{day:'2-digit',month:'shor
 
 let db=null, auth=null, setupErr='';
 if(!window.firebase) setupErr='Pustaka Firebase tidak dapat dimuatkan di sini. Rekod hanya berfungsi apabila fail ini dihoskan sendiri (cth. Firebase Hosting).';
-else if(/GANTI/.test(FIREBASE_CONFIG.apiKey)) setupErr='Konfigurasi Firebase belum diisi. Sila isi FIREBASE_CONFIG dalam fail HTML (lihat panduan).';
+else if(!window.FIREBASE_CONFIG) setupErr='Fail firebase-config.js tidak dijumpai. Pastikan fail itu di-upload ke folder yang sama dengan index.html.';
+else if(/GANTI/.test(FIREBASE_CONFIG.apiKey)) setupErr='firebase-config.js masih mengandungi nilai GANTI. Tampal firebaseConfig projek anda ke dalam fail itu, kemudian Commit semula.';
 else { try{ firebase.initializeApp(FIREBASE_CONFIG); auth=firebase.auth(); db=firebase.firestore(); }catch(e){ setupErr='Firebase gagal dimulakan: '+e.message; } }
 const ready=()=>!!db;
 
