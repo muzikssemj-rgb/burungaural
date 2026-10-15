@@ -152,6 +152,8 @@ p{margin:0}
 /* Accounts, records, admin */
 .who{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;background:rgba(255,246,224,.92);border:3px solid var(--ink);border-radius:16px;padding:8px 14px;font-weight:900;box-shadow:0 4px 0 var(--ink)}
 .btn.sm{font-size:1rem;padding:6px 14px;border-radius:12px;box-shadow:0 4px 0 var(--ink)}
+.admin-link{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;text-align:center}
+.admin-note{font-weight:800;font-size:.85rem;background:rgba(255,246,224,.92);border:2px solid var(--ink);border-radius:999px;padding:3px 12px}
 .linkbtn{font:inherit;font-weight:900;background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;text-shadow:0 2px 0 var(--ink)}
 .field{display:flex;flex-direction:column;gap:4px;font-weight:900;font-size:.9rem;min-width:0}
 .field input,.field select,.field textarea{font:inherit;font-weight:800;padding:9px 11px;border:3px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);width:100%;-webkit-user-select:text;user-select:text}
@@ -218,7 +220,7 @@ code{font-weight:900;background:#f3e3c3;border-radius:6px;padding:1px 6px}
         <button class="btn yellow" id="btnBirds">Pilih Burung</button>
       </div>
       <div class="who" id="who"></div>
-      <button class="linkbtn" id="btnAdmin">Panel Guru</button>
+      <div class="admin-link"><button class="linkbtn" id="btnAdmin">Panel Guru</button><span class="admin-note">Roger Cikgu Dzurri untuk dapatkan password guru</span></div>
     </div>
   </div>
 
@@ -315,7 +317,7 @@ code{font-weight:900;background:#f3e3c3;border-radius:6px;padding:1px 6px}
   <!-- RECORDS -->
   <div class="scrim" id="scrRecord" hidden>
     <div class="board wide rec">
-      <div class="ribbon ol">REKOD SAYA</div>
+      <div class="ribbon ol" id="recRibbon">REKOD SAYA</div>
       <div id="recBody"></div>
       <div class="row"><button class="btn red" id="recClose">Tutup</button><button class="btn blue" id="recPdf">Muat Turun PDF</button></div>
     </div>
@@ -967,7 +969,7 @@ function showResult(){
   const rs=$('#rSaved'); rs.className='msg'; rs.textContent='';
   if(window.BAData){ rs.textContent='Menyimpan rekod...';
     window.BAData.saveSession({mode:game.mode,correct:c,total:TOTAL,score:game.score,stars,settings:{direction:settings.direction,choices:settings.choices},answers:game.log})
-      .then(r=>{ rs.className='msg '+(r.saved?'okm':''); rs.textContent=r.saved?'Rekod disimpan. Lihat di "Rekod Saya".':(r.reason==='guest'?'Mod tetamu: rekod tidak disimpan.':'Pangkalan data tidak disambungkan: rekod tidak disimpan.'); })
+      .then(r=>{ rs.className='msg '+(r.saved?'okm':''); rs.textContent=r.saved?(r.local?'Skor disimpan dalam peranti ini. Lihat di "Skor Saya".':'Rekod disimpan. Lihat di "Rekod Saya".'):(r.reason==='guest'?'Mod tetamu: rekod tidak disimpan.':'Pangkalan data tidak disambungkan: rekod tidak disimpan.'); })
       .catch(e=>{ rs.className='msg err'; rs.textContent='Rekod gagal disimpan: '+e.message; }); }
   if(stars) chime(true);
 }
@@ -1025,8 +1027,9 @@ const FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
 
 const $=s=>document.querySelector(s);
 const G=window.BAGame;
-function load(k,d){try{const v=localStorage.getItem('burungAural.'+k);return v?JSON.parse(v):d}catch(e){return d}}
-function save(k,v){try{v==null?localStorage.removeItem('burungAural.'+k):localStorage.setItem('burungAural.'+k,JSON.stringify(v))}catch(e){}}
+const MEM={};
+function load(k,d){try{const v=localStorage.getItem('burungAural.'+k);return v?JSON.parse(v):d}catch(e){return k in MEM?MEM[k]:d}}
+function save(k,v){MEM[k]=v;try{v==null?localStorage.removeItem('burungAural.'+k):localStorage.setItem('burungAural.'+k,JSON.stringify(v))}catch(e){}}
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ALPH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const genCode=()=>{const a=new Uint32Array(8);crypto.getRandomValues(a);return Array.from(a,x=>ALPH[x%ALPH.length]).join('');};
@@ -1063,8 +1066,9 @@ function renderWho(){
     $('#whoRec').onclick=openMyRecords;
     $('#whoOut').onclick=()=>{ student=null; save('student',null); guest=false; renderWho(); };
   } else {
-    w.innerHTML=`<span>${guest?'Bermain sebagai tetamu':'Belum log masuk'}</span><button class="btn sm" id="whoIn">Log Masuk Murid</button>`;
+    w.innerHTML=`<span>${guest?'Bermain sebagai tetamu':'Belum log masuk'}</span><button class="btn blue sm" id="whoScore">Skor Saya</button><button class="btn sm" id="whoIn">Log Masuk Murid</button>`;
     $('#whoIn').onclick=()=>openLogin(null);
+    $('#whoScore').onclick=openGuestRecords;
   }
 }
 let afterLogin=null;
@@ -1097,8 +1101,13 @@ const playBtn=$('#btnPlay'), origPlay=playBtn.onclick;
 playBtn.onclick=()=>{ if(!student&&!guest&&ready()) openLogin(()=>origPlay()); else origPlay(); };
 
 /* ---------- sessions ---------- */
+/* skor tetamu: disimpan dalam peranti ini sahaja */
+const guestSessions=()=>{ const a=load('guestSessions',[]); return Array.isArray(a)?a:[]; };
 async function saveSession(s){
-  if(!student) return {saved:false,reason:'guest'};
+  if(!student){
+    const a=guestSessions(); a.push(Object.assign({},s,{playedAt:Date.now()}));
+    save('guestSessions',a.slice(-300)); return {saved:true,local:true};
+  }
   if(!ready()) return {saved:false,reason:'offline'};
   await ensureAuth();
   await db.collection('students').doc(student.code).collection('sessions').add(Object.assign({},s,{playedAt:Date.now(),createdAt:firebase.firestore.FieldValue.serverTimestamp()}));
@@ -1128,7 +1137,9 @@ function recordsHTML(info,sessions){
   return `<div style="display:flex;flex-direction:column;gap:12px">
     ${info.logo?`<img class="rec-logo" src="${info.logo}" alt="Logo sekolah">`:''}
     <h2>${esc(info.name)}</h2>
-    <p class="tag">${esc(info.className||'')}${info.schoolName?' · '+esc(info.schoolName):''} · Kod ${esc(fmtCode(info.code))}</p>
+    ${info.guest?`<p class="tag">Skor tetamu disimpan dalam peranti ini sahaja.</p>
+    <div class="row" style="align-items:flex-end"><label class="field" for="guestName" style="min-width:min(320px,100%)">Nama untuk laporan PDF (pilihan)<input id="guestName" value="${esc(info.name==='Tetamu'?'':info.name)}" placeholder="cth. Aina"></label><button class="btn red sm" id="guestClear">Padam Semua Skor</button></div>`
+    :`<p class="tag">${[info.className,info.schoolName].filter(Boolean).map(esc).join(' · ')}${info.code?' · Kod '+esc(fmtCode(info.code)):''}</p>`}
     <div class="tiles">${tiles}</div>
     ${sessions.length?`<h3>Peratus jawapan betul setiap sesi</h3><canvas class="chart"></canvas>
     <div class="legend">${['skel','kord','jeda'].map(m=>`<span><i style="background:${MODE_COLOR[m]}"></i>${MODE_SHORT[m]}</span>`).join('')}</div>
@@ -1155,6 +1166,7 @@ function drawChart(cv,sessions){
 }
 let recCtx=null;
 async function openMyRecords(){
+  $('#recRibbon').textContent='REKOD SAYA';
   if(!student) return;
   const body=$('#recBody'); body.innerHTML='<p class="empty">Memuatkan rekod...</p>'; G.show('#scrRecord');
   if(!ready()){ body.innerHTML=`<p class="empty">${esc(setupErr)}</p>`; return; }
@@ -1162,11 +1174,28 @@ async function openMyRecords(){
     body.innerHTML=recordsHTML(student,ss); drawChart(body.querySelector('canvas'),ss);
   }catch(e){ body.innerHTML=`<p class="empty">Gagal memuatkan rekod: ${esc(e.message)}</p>`; }
 }
+function openGuestRecords(){
+  $('#recRibbon').textContent='SKOR SAYA';
+  const ss=guestSessions().sort((a,b)=>a.playedAt-b.playedAt);
+  const info={guest:true,name:load('guestName','')||'Tetamu',code:'',className:'',schoolName:''};
+  recCtx={info,sessions:ss};
+  const body=$('#recBody'); body.innerHTML=recordsHTML(info,ss); G.show('#scrRecord');
+  drawChart(body.querySelector('canvas'),ss);
+  const gn=$('#guestName'); gn.addEventListener('input',()=>{ const v=gn.value.trim(); save('guestName',v); info.name=v||'Tetamu'; });
+  const gc=$('#guestClear'); gc.onclick=()=>{
+    if(gc.dataset.armed!=='1'){ gc.dataset.armed='1'; gc.textContent='Sahkan padam?'; setTimeout(()=>{ if(gc.isConnected){gc.dataset.armed='';gc.textContent='Padam Semua Skor';} },3500); return; }
+    save('guestSessions',[]); openGuestRecords(); };
+}
 $('#recClose').onclick=()=>G.show('#scrMenu');
 $('#recPdf').onclick=()=>{ if(recCtx) progressPdf(recCtx.info,recCtx.sessions); };
 
 /* ---------- PDF ---------- */
 const pdfTxt=s=>String(s==null?'':s).replace(/♭/g,'b').replace(/♯/g,'#').replace(/–/g,'-').replace(/·/g,'-');
+async function savePdf(doc,filename){
+  try{ if(window.claude&&window.claude.use){ const dl=await window.claude.use('downloads'); if(dl){ await dl.save({filename,data:doc.output('blob')}); return; } } }
+  catch(e){ if(e&&e.code==='declined') return; }
+  doc.save(filename);
+}
 function newPdf(){ if(!window.jspdf){ alert('Pustaka PDF tidak dapat dimuatkan.'); return null; } return new window.jspdf.jsPDF({unit:'mm',format:'a4'}); }
 function pdfLogo(doc,logo,x,y,maxW,maxH){
   if(!logo) return; try{ const pr=doc.getImageProperties(logo); const k=Math.min(maxW/pr.width,maxH/pr.height); doc.addImage(logo,'PNG',x+(maxW-pr.width*k)/2,y+(maxH-pr.height*k)/2,pr.width*k,pr.height*k); }catch(e){}
@@ -1196,7 +1225,7 @@ function progressPdf(info,sessions){
   pdfHeader(doc,'Laporan Progress Aural Muzik','Burung Aural - dijana '+fmtDate(Date.now()),info.logo);
   doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.text(pdfTxt(info.name),14,36);
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
-  doc.text(pdfTxt(`Kelas: ${info.className||'-'}    Sekolah: ${info.schoolName||'-'}    Kod: ${fmtCode(info.code)}`),14,42);
+  doc.text(pdfTxt(info.guest?'Mod tetamu (skor disimpan dalam peranti)':`Kelas: ${info.className||'-'}    Sekolah: ${info.schoolName||'-'}    Kod: ${info.code?fmtCode(info.code):'-'}`),14,42);
   const sm=summarize(sessions); let y=52;
   doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Ringkasan',14,y); y+=7;
   y=pdfTable(doc,y,[{t:'Ujian',w:80},{t:'Sesi',w:22},{t:'Purata',w:26},{t:'Terbaik',w:26},{t:'Terkini',w:26}],
@@ -1228,7 +1257,7 @@ function progressPdf(info,sessions){
         lastS.answers.map(a=>[a.no,a.detail,a.chosen,a.ok?'Betul':'Salah (jawapan: '+a.answer+')']),{color:i=>lastS.answers[i].ok?null:[169,47,31]});
     }
   } else { doc.setFontSize(10); doc.text('Belum ada sesi direkodkan.',14,y); }
-  doc.save(pdfTxt('Progress_'+info.name.replace(/\s+/g,'_')+'.pdf'));
+  savePdf(doc,pdfTxt('Progress_'+info.name.replace(/\s+/g,'_')+'.pdf'));
 }
 
 /* ---------- admin ---------- */
@@ -1379,7 +1408,7 @@ $('#admPdfCodes').onclick=()=>{
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
     doc.text(doc.splitTextToSize('Buka permainan Burung Aural, tekan MAIN dan masukkan kod ini. Simpan kod ini baik-baik.',cw-12),x+4,y+40);
   });
-  doc.save(pdfTxt('Slip_Kod_'+($('#admFilter').value||'Semua')+'.pdf'));
+  savePdf(doc,pdfTxt('Slip_Kod_'+($('#admFilter').value||'Semua')+'.pdf'));
 };
 $('#admPdfClass').onclick=()=>{
   const list=visibleStudents(); if(!list.length) return; const doc=newPdf(); if(!doc) return;
@@ -1388,7 +1417,7 @@ $('#admPdfClass').onclick=()=>{
   pdfTable(doc,36,[{t:'Nama',w:56},{t:'Kelas',w:22},{t:'Sesi',w:13},{t:'Skel',w:17},{t:'Kord',w:17},{t:'Jeda',w:17},{t:'Purata',w:17},{t:'Terakhir',w:23}],
     list.map(s=>{const sm=summarize(sessCache[s.code]||[]);const f=v=>v==null?'-':v+'%';
       return [s.name,s.className||'',sm.all.n,f(sm.skel.avg),f(sm.kord.avg),f(sm.jeda.avg),f(sm.all.avg),sm.all.lastAt?new Date(sm.all.lastAt).toLocaleDateString('ms-MY'):'-'];}));
-  doc.save(pdfTxt('Laporan_Kelas_'+($('#admFilter').value||'Semua')+'.pdf'));
+  savePdf(doc,pdfTxt('Laporan_Kelas_'+($('#admFilter').value||'Semua')+'.pdf'));
 };
 
 /* ---------- logo sekolah ---------- */

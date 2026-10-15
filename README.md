@@ -89,6 +89,12 @@ Pautan: `https://PROJECT_ID.web.app`. Domain ini sudah dibenarkan secara automat
 3. Rekod disimpan secara automatik selepas setiap tahap (8 soalan).
 4. Tekan **Rekod Saya** untuk melihat graf progress dan **Muat Turun PDF**.
 
+### Tetamu (tanpa kod)
+1. Tekan **MAIN**, kemudian **Main sebagai tetamu**.
+2. Skor setiap tahap disimpan **dalam peranti/pelayar itu sahaja** (tidak ke Firestore).
+3. Di menu utama, tekan **Skor Saya** untuk melihat graf progress. Isi nama (pilihan), kemudian tekan **Muat Turun PDF**.
+   > Skor tetamu hilang jika data pelayar dipadam atau jika bermain di peranti lain.
+
 ---
 
 ## Penyelesaian masalah
